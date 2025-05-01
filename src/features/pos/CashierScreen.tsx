@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { posDB } from '@/lib/storage';
+import { useState, useEffect } from 'react';
+import { posDB, supabase } from '@/lib/storage';
 import { applyTax } from '@/lib/tax';
 import { ShoppingCart, Plus, Minus, Trash2 } from 'lucide-react';
 
@@ -10,16 +10,41 @@ interface CartItem {
   quantity: number;
 }
 
+const sampleProducts = [
+  { id: '1', name: 'Coffee', price: 3.99 },
+  { id: '2', name: 'Sandwich', price: 8.99 },
+  { id: '3', name: 'Salad', price: 7.99 },
+  { id: '4', name: 'Cookie', price: 1.99 },
+];
+
 export default function Cashier() {
   const [cart, setCart] = useState<CartItem[]>([]);
-  const [state] = useState('CA'); // Default state, could be made configurable
+  const [state] = useState('CA');
+  const [userId, setUserId] = useState<string | null>(null);
+  const [loading, setLoading] = useState(false);
 
-  const addItem = async (item: CartItem) => {
-    await posDB.upsert('cart', item);
-    setCart(prev => [...prev, item]);
+  useEffect(() => {
+    const { data: { user } } = supabase.auth.getUser();
+    if (user) {
+      setUserId(user.id);
+    }
+  }, []);
+
+  const addToCart = (product: typeof sampleProducts[0]) => {
+    setCart(prev => {
+      const existingItem = prev.find(item => item.id === product.id);
+      if (existingItem) {
+        return prev.map(item =>
+          item.id === product.id
+            ? { ...item, quantity: item.quantity + 1 }
+            : item
+        );
+      }
+      return [...prev, { ...product, quantity: 1 }];
+    });
   };
 
-  const updateQuantity = async (itemId: string, delta: number) => {
+  const updateQuantity = (itemId: string, delta: number) => {
     const updatedCart = cart.map(item => {
       if (item.id === itemId) {
         const newQuantity = Math.max(0, item.quantity + delta);
@@ -29,64 +54,115 @@ export default function Cashier() {
     }).filter(item => item.quantity > 0);
 
     setCart(updatedCart);
-    await posDB.upsert('cart', updatedCart);
   };
 
   const subtotal = cart.reduce((sum, item) => sum + (item.price * item.quantity), 0);
   const tax = applyTax(subtotal, state);
   const total = subtotal + tax;
 
+  const handleCheckout = async () => {
+    if (!userId) {
+      alert('Please log in to complete the transaction');
+      return;
+    }
+
+    try {
+      setLoading(true);
+      await posDB.saveTransaction({
+        subtotal,
+        tax,
+        total,
+        state,
+        user_id: userId
+      });
+      setCart([]);
+      alert('Transaction completed successfully!');
+    } catch (error) {
+      console.error('Error saving transaction:', error);
+      alert('Failed to process transaction');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
-    <div className="pos-screen p-4">
-      <div className="flex items-center gap-2 mb-4">
-        <ShoppingCart className="w-6 h-6" />
-        <h2 className="text-xl font-bold">Cart</h2>
-      </div>
-
-      <div className="space-y-4">
-        {cart.map(item => (
-          <div key={item.id} className="flex items-center justify-between bg-white p-3 rounded-lg shadow">
-            <div>
-              <h3 className="font-medium">{item.name}</h3>
-              <p className="text-sm text-gray-600">${item.price.toFixed(2)}</p>
-            </div>
-            <div className="flex items-center gap-2">
+    <div className="pos-screen p-4 max-w-3xl mx-auto">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div className="products-section">
+          <h2 className="text-xl font-bold mb-4">Products</h2>
+          <div className="grid grid-cols-2 gap-2">
+            {sampleProducts.map(product => (
               <button
-                onClick={() => updateQuantity(item.id, -1)}
-                className="p-1 rounded hover:bg-gray-100"
+                key={product.id}
+                onClick={() => addToCart(product)}
+                className="p-3 border rounded-lg text-left hover:bg-gray-50"
               >
-                <Minus className="w-4 h-4" />
+                <div className="font-medium">{product.name}</div>
+                <div className="text-sm text-gray-600">${product.price.toFixed(2)}</div>
               </button>
-              <span className="w-8 text-center">{item.quantity}</span>
-              <button
-                onClick={() => updateQuantity(item.id, 1)}
-                className="p-1 rounded hover:bg-gray-100"
-              >
-                <Plus className="w-4 h-4" />
-              </button>
-              <button
-                onClick={() => updateQuantity(item.id, -item.quantity)}
-                className="p-1 rounded hover:bg-gray-100 text-red-500 ml-2"
-              >
-                <Trash2 className="w-4 h-4" />
-              </button>
-            </div>
+            ))}
           </div>
-        ))}
-      </div>
+        </div>
 
-      <div className="mt-6 space-y-2">
-        <div className="flex justify-between">
-          <span>Subtotal:</span>
-          <span>${subtotal.toFixed(2)}</span>
-        </div>
-        <div className="flex justify-between">
-          <span>Tax ({state}):</span>
-          <span>${tax.toFixed(2)}</span>
-        </div>
-        <div className="flex justify-between font-bold">
-          <span>Total:</span>
-          <span>${total.toFixed(2)}</span>
+        <div className="cart-section">
+          <div className="flex items-center gap-2 mb-4">
+            <ShoppingCart className="w-6 h-6" />
+            <h2 className="text-xl font-bold">Cart</h2>
+          </div>
+
+          <div className="space-y-4">
+            {cart.map(item => (
+              <div key={item.id} className="flex items-center justify-between bg-white p-3 rounded-lg shadow">
+                <div>
+                  <h3 className="font-medium">{item.name}</h3>
+                  <p className="text-sm text-gray-600">${item.price.toFixed(2)}</p>
+                </div>
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={() => updateQuantity(item.id, -1)}
+                    className="p-1 rounded hover:bg-gray-100"
+                  >
+                    <Minus className="w-4 h-4" />
+                  </button>
+                  <span className="w-8 text-center">{item.quantity}</span>
+                  <button
+                    onClick={() => updateQuantity(item.id, 1)}
+                    className="p-1 rounded hover:bg-gray-100"
+                  >
+                    <Plus className="w-4 h-4" />
+                  </button>
+                  <button
+                    onClick={() => updateQuantity(item.id, -item.quantity)}
+                    className="p-1 rounded hover:bg-gray-100 text-red-500 ml-2"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+
+          <div className="mt-6 space-y-2">
+            <div className="flex justify-between">
+              <span>Subtotal:</span>
+              <span>${subtotal.toFixed(2)}</span>
+            </div>
+            <div className="flex justify-between">
+              <span>Tax ({state}):</span>
+              <span>${tax.toFixed(2)}</span>
+            </div>
+            <div className="flex justify-between font-bold">
+              <span>Total:</span>
+              <span>${total.toFixed(2)}</span>
+            </div>
+            <button
+              onClick={handleCheckout}
+              className="w-full mt-4 bg-blue-500 text-white py-2 rounded-lg hover:bg-blue-600 disabled:bg-gray-400"
+              disabled={cart.length === 0 || !userId || loading}
+            >
+              {loading ? 'Processing...' : 'Complete Transaction'}
+            </button>
+          </div>
         </div>
       </div>
     </div>
