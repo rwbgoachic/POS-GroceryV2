@@ -8,7 +8,9 @@
     "build": "tsc -b && vite build",
     "lint": "eslint .",
     "preview": "vite preview",
-    "test": "vitest"
+    "test": "vitest",
+    "test:printers": "vitest printer",
+    "test:scanners": "vitest scanner"
   },
   "dependencies": {
     "@paysurity/tax": "latest",
