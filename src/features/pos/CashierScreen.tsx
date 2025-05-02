@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react';
 import { posDB, supabase } from '@/lib/storage';
 import { applyTax } from '@/lib/tax';
-import { ShoppingCart, Plus, Minus, Trash2 } from 'lucide-react';
+import { saveTransaction } from '@/lib/offline';
+import { ShoppingCart, Plus, Minus, Trash2, Wifi, WifiOff } from 'lucide-react';
 
 interface CartItem {
   id: string;
@@ -22,12 +23,26 @@ export default function Cashier() {
   const [state] = useState('CA');
   const [userId, setUserId] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [isOnline, setIsOnline] = useState(navigator.onLine);
+  const [status, setStatus] = useState<string>('');
 
   useEffect(() => {
     const { data: { user } } = supabase.auth.getUser();
     if (user) {
       setUserId(user.id);
     }
+
+    const updateOnlineStatus = () => {
+      setIsOnline(navigator.onLine);
+    };
+
+    window.addEventListener('online', updateOnlineStatus);
+    window.addEventListener('offline', updateOnlineStatus);
+
+    return () => {
+      window.removeEventListener('online', updateOnlineStatus);
+      window.removeEventListener('offline', updateOnlineStatus);
+    };
   }, []);
 
   const addToCart = (product: typeof sampleProducts[0]) => {
@@ -62,31 +77,59 @@ export default function Cashier() {
 
   const handleCheckout = async () => {
     if (!userId) {
-      alert('Please log in to complete the transaction');
+      setStatus('Please log in to complete the transaction');
       return;
     }
 
     try {
       setLoading(true);
-      await posDB.saveTransaction({
+      const result = await saveTransaction({
         subtotal,
         tax,
         total,
         state,
         user_id: userId
       });
+
       setCart([]);
-      alert('Transaction completed successfully!');
+      setStatus(result.offline 
+        ? 'Transaction saved offline. Will sync when online.' 
+        : 'Transaction completed successfully!');
     } catch (error) {
       console.error('Error saving transaction:', error);
-      alert('Failed to process transaction');
+      setStatus('Failed to process transaction');
     } finally {
       setLoading(false);
+      setTimeout(() => setStatus(''), 3000);
     }
   };
 
   return (
     <div className="pos-screen p-4 max-w-3xl mx-auto">
+      <div className="flex items-center justify-between mb-4">
+        <h2 className="text-xl font-bold">POS System</h2>
+        <div className="flex items-center gap-2">
+          {isOnline ? (
+            <Wifi className="w-5 h-5 text-green-500" />
+          ) : (
+            <WifiOff className="w-5 h-5 text-red-500" />
+          )}
+          <span className={isOnline ? "text-green-500" : "text-red-500"}>
+            {isOnline ? "Online" : "Offline"}
+          </span>
+        </div>
+      </div>
+
+      {status && (
+        <div className={`mb-4 p-3 rounded ${
+          status.includes('success') || status.includes('offline')
+            ? 'bg-green-100 text-green-700'
+            : 'bg-red-100 text-red-700'
+        }`}>
+          {status}
+        </div>
+      )}
+
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div className="products-section">
           <h2 className="text-xl font-bold mb-4">Products</h2>

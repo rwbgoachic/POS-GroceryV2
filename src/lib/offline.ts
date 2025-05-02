@@ -56,3 +56,6 @@ export const saveTransaction = async (data: Omit<Transaction, 'id' | 'created_at
   localStorage.setItem('pos-queue', JSON.stringify(queue));
   return { success: true, offline: true };
 };
+
+// Auto-process queue when coming back online
+window.addEventListener('online', processOfflineQueue);
