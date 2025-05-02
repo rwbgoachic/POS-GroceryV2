@@ -14,6 +14,7 @@
     "@paysurity/tax": "latest",
     "@paysurity/datasync": "latest",
     "@paysurity/security": "1.2.1",
+    "@paysurity/ui": "1.1",
     "@supabase/supabase-js": "latest",
     "lucide-react": "latest",
     "react": "18.2.0",
