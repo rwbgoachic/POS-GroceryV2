@@ -19,6 +19,7 @@
     "@paysurity/datasync": "latest",
     "@paysurity/security": "1.2.1",
     "@paysurity/ui": "1.1",
+    "@paysurity/common-utils": "latest",
     "@rwbgoachic/pos-core": "github:rwbgoachic/POS-Core#main",
     "@rwbgoachic/pos-devices": "github:rwbgoachic/POS-Devices#main",
     "@supabase/supabase-js": "latest",
