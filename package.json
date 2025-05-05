@@ -10,18 +10,23 @@
     "preview": "vite preview",
     "test": "vitest",
     "test:printers": "vitest printer",
-    "test:scanners": "vitest scanner"
+    "test:scanners": "vitest scanner",
+    "test:devices": "npm run test:printers && npm run test:scanners",
+    "compress": "imagemin src/assets/* --out-dir=src/assets/compressed"
   },
   "dependencies": {
     "@paysurity/tax": "latest",
     "@paysurity/datasync": "latest",
     "@paysurity/security": "1.2.1",
     "@paysurity/ui": "1.1",
+    "@rwbgoachic/pos-core": "github:rwbgoachic/POS-Core#main",
+    "@rwbgoachic/pos-devices": "github:rwbgoachic/POS-Devices#main",
     "@supabase/supabase-js": "latest",
     "lucide-react": "latest",
     "react": "18.2.0",
     "react-dom": "18.2.0",
-    "uuid": "^9.0.1"
+    "uuid": "^9.0.1",
+    "dotenv-encrypted": "latest"
   },
   "devDependencies": {
     "@eslint/js": "^9.25.0",
@@ -35,6 +40,7 @@
     "eslint-plugin-react-hooks": "^5.2.0",
     "eslint-plugin-react-refresh": "^0.4.19",
     "globals": "^16.0.0",
+    "imagemin-cli": "^7.0.0",
     "postcss": "^8.4.35",
     "tailwindcss": "^3.4.1",
     "typescript": "~5.8.3",
