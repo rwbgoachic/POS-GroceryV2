@@ -30,5 +30,17 @@ export const posDB = {
     
     if (error) throw error;
     return data;
+  },
+
+  async getExpiringProducts() {
+    const { data, error } = await supabase
+      .from('products')
+      .select('*')
+      .lte('expiry_date', new Date(Date.now() + 7 * 24 * 60 * 60 * 1000))
+      .gte('expiry_date', new Date())
+      .order('expiry_date');
+
+    if (error) throw error;
+    return data;
   }
 };
